@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tap and Earn App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    .container { max-width: 900px; margin: 20px auto; padding: 20px; }
+    .hidden { display: none; }
+    header { display: flex; justify-content: space-between; align-items: center; background: #333; color: #fff; padding: 10px 20px; }
+    header h1 { margin: 0; font-size: 1.5em; }
+    #balanceDisplay { font-size: 1.2em; }
+    form { margin: 20px 0; }
+    form input, form select { padding: 8px; margin: 5px 0; width: 100%; }
+    form button { padding: 10px 20px; margin-top: 10px; }
+    .section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; }
+    
+    /* Style for the Tap and Earn button */
+    #tapButton {
+      background: #0088cc;
+      color: #fff;
+      border: none;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      font-size: 32px;
+      line-height: 80px;
+      text-align: center;
+      cursor: pointer;
+      display: block;
+      margin: 20px auto;
+    }
+
+    /* Style for the Contact Support button (placed below tapping section) */
+    #contactSupportButton {
+      background: #0088cc;
+      color: #fff;
+      border: none;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 80px;
+      font-size: 14px;
+      text-decoration: none;
+      display: block;
+      margin: 20px auto;
+    }
+
+    /* Simple styling for table */
+    table { width: 100%; border-collapse: collapse; }
+    table, th, td { border: 1px solid #aaa; }
+    th, td { padding: 8px; text-align: left; }
+  </style>
+</head>
+<body>
+  <!-- Login Page -->
+  <div id="loginPage" class="container">
+    <h2>Login</h2>
+    <form id="loginForm" onsubmit="return login(event)">
+      <label for="phone">Phone Number:</label>
+      <input type="text" id="phone" required>
+      <label for="password">Password:</label>
+      <input type="password" id="password" required>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+
+  <!-- Main App Page -->
+  <div id="appPage" class="container hidden">
+    <header>
+      <h1>Tap and Earn App</h1>
+      <div id="balanceDisplay">Balance: ₦0.0</div>
+    </header>
+
+    <!-- Tap and Earn Section -->
+    <div class="section">
+      <h2>Tap and Earn</h2>
+      <p>Earn ₦0.1 per tap. Your earnings are automatically added to your balance.</p>
+      <button id="tapButton" onclick="tapEarn()">₦</button>
+    </div>
+
+    <!-- Contact Support Button (placed below tapping section) -->
+    <a id="contactSupportButton" href="https://t.me/CEOEZ001" target="_blank">Support</a>
+
+    <!-- Withdrawal Section -->
+    <div class="section">
+      <h2>Withdrawal</h2>
+      <form id="withdrawForm" onsubmit="return submitWithdrawal(event)">
+        <label for="bank">BANK:</label>
+        <input type="text" id="bank" required>
+        <label for="accountNumber">ACCOUNT NUMBER:</label>
+        <input type="text" id="accountNumber" required>
+        <label for="accountName">ACCOUNT NAME:</label>
+        <input type="text" id="accountName" required>
+        <label for="withdrawAmount">AMOUNT:</label>
+        <input type="number" id="withdrawAmount" required min="200">
+        <label for="withdrawPhone">LOGIN PHONE NUMBER:</label>
+        <input type="text" id="withdrawPhone" required>
+        <button type="submit">Withdraw</button>
+      </form>
+    </div>
+
+    <!-- Last 5 Withdrawals Section -->
+    <div class="section">
+      <h2>Last 5 Withdrawals</h2>
+      <table id="withdrawalsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Bank</th>
+            <th>Account Number</th>
+            <th>Account Name</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Withdrawal records will be appended here -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Edit Balance Section (Admin) -->
+    <div class="section">
+      <h2>Edit Balance (Admin Only)</h2>
+      <form id="editBalanceForm" onsubmit="return editBalance(event)">
+        <label for="adminPassword">Admin Password:</label>
+        <input type="password" id="adminPassword" required>
+        <label for="newBalance">New Balance:</label>
+        <input type="number" id="newBalance" required>
+        <button type="submit">Update Balance</button>
+      </form>
+    </div>
+
+    <!-- Mark Withdrawal as Pending or Paid (Admin) -->
+    <div class="section">
+      <h2>Update Withdrawal Status (Admin Only)</h2>
+      <form id="updateWithdrawForm" onsubmit="return updateWithdrawalStatus(event)">
+        <label for="withdrawId">Withdrawal ID:</label>
+        <input type="number" id="withdrawId" required>
+        <label for="withdrawStatus">Status (pending/paid):</label>
+        <select id="withdrawStatus">
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
+        </select>
+        <label for="adminPassword2">Admin Password:</label>
+        <input type="password" id="adminPassword2" required>
+        <button type="submit">Update Status</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Global variable to hold the current user's data
+    let currentUser = { phone: '', balance: 0, withdrawals: [] };
+    const adminPass = "903411@#";
+
+    // Save current user data to localStorage using phone as key
+    function saveUserData() {
+      if (currentUser.phone) {
+        localStorage.setItem('user_' + currentUser.phone, JSON.stringify(currentUser));
+      }
+    }
+
+    // Load user data from localStorage based on phone number
+    function loadUserData(phone) {
+      const data = localStorage.getItem('user_' + phone);
+      if (data) {
+        return JSON.parse(data);
+      }
+      return { phone: phone, balance: 0, withdrawals: [] };
+    }
+
+    // Login function – in a real app, validate with backend.
+    function login(event) {
+      event.preventDefault();
+      const phone = document.getElementById('phone').value.trim();
+      const password = document.getElementById('password').value.trim();
+      if (phone && password) {
+        currentUser = loadUserData(phone);
+        currentUser.phone = phone; // ensure phone is set
+        updateBalanceDisplay();
+        document.getElementById('loginPage').classList.add('hidden');
+        document.getElementById('appPage').classList.remove('hidden');
+        saveUserData();
+      }
+      return false;
+    }
+
+    // Tap and Earn function: Each tap adds ₦0.1 to the balance.
+    function tapEarn() {
+      currentUser.balance += 0.1;
+      updateBalanceDisplay();
+      saveUserData();
+    }
+
+    function updateBalanceDisplay() {
+      document.getElementById('balanceDisplay').innerText = "Balance: ₦" + currentUser.balance.toFixed(1);
+    }
+
+    // Withdrawal submission with a unique ID
+    function submitWithdrawal(event) {
+      event.preventDefault();
+      const bank = document.getElementById('bank').value.trim();
+      const accountNumber = document.getElementById('accountNumber').value.trim();
+      const accountName = document.getElementById('accountName').value.trim();
+      const amount = parseFloat(document.getElementById('withdrawAmount').value);
+      const phone = document.getElementById('withdrawPhone').value.trim();
+
+      if (amount < 200) {
+        alert("Minimum withdrawal is ₦200.");
+        return false;
+      }
+      // Create withdrawal with a unique ID (using current timestamp)
+      const withdrawal = {
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        bank: bank,
+        accountNumber: accountNumber,
+        accountName: accountName,
+        amount: amount,
+        status: "pending",
+        phone: phone
+      };
+      currentUser.withdrawals.push(withdrawal);
+      if (currentUser.withdrawals.length > 5) {
+        currentUser.withdrawals.shift();
+      }
+      updateWithdrawalTable();
+      saveUserData();
+      alert("Withdrawal Successful, contact support to process your withdrawals.");
+      event.target.reset();
+      return false;
+    }
+
+    function updateWithdrawalTable() {
+      const tbody = document.getElementById('withdrawalsTable').querySelector('tbody');
+      tbody.innerHTML = "";
+      currentUser.withdrawals.slice().reverse().forEach((wd) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${wd.id}</td>
+                        <td>${wd.date}</td>
+                        <td>${wd.bank}</td>
+                        <td>${wd.accountNumber}</td>
+                        <td>${wd.accountName}</td>
+                        <td>₦${wd.amount}</td>
+                        <td>${wd.status}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Admin: Edit balance
+    function editBalance(event) {
+      event.preventDefault();
+      const pass = document.getElementById('adminPassword').value.trim();
+      const newBalance = parseFloat(document.getElementById('newBalance').value);
+      if (pass === adminPass) {
+        currentUser.balance = newBalance;
+        updateBalanceDisplay();
+        saveUserData();
+        alert("Balance updated successfully.");
+      } else {
+        alert("Incorrect admin password.");
+      }
+      event.target.reset();
+      return false;
+    }
+
+    // Admin: Update withdrawal status by unique withdrawal ID
+    function updateWithdrawalStatus(event) {
+      event.preventDefault();
+      const withdrawId = parseInt(document.getElementById('withdrawId').value, 10);
+      const status = document.getElementById('withdrawStatus').value;
+      const pass = document.getElementById('adminPassword2').value.trim();
+      if (pass !== adminPass) {
+        alert("Incorrect admin password.");
+        return false;
+      }
+      // Find the withdrawal by its unique ID
+      const withdrawal = currentUser.withdrawals.find(wd => wd.id === withdrawId);
+      if (!withdrawal) {
+        alert("Invalid withdrawal ID.");
+        return false;
+      }
+      withdrawal.status = status;
+      updateWithdrawalTable();
+      saveUserData();
+      alert("Withdrawal status updated.");
+      event.target.reset();
+      return false;
+    }
+  </script>
+</body>
+</html>
